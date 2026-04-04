@@ -1,7 +1,7 @@
 export default {
   async fetch(request, env, ctx) {
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "*", // We'll recommend the user to change this to their GH Pages URL later
+      "Access-Control-Allow-Origin": "https://fatdesign.github.io",
       "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, X-API-KEY",
     };
