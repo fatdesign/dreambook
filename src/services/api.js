@@ -62,7 +62,13 @@ export const api = {
       method: "POST",
       headers: getHeaders(),
     });
-    if (!response.ok) throw new Error("The Witch is silent. Try again.");
+    
+    if (!response.ok) {
+      // Try to get the detailed error from the response body
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "The Witch is silent. Try again.");
+    }
+    
     return await response.json();
   }
 };
