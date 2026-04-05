@@ -232,7 +232,7 @@ input:focus, textarea:focus {
 .modal-content {
   max-width: 700px;
   width: 100%;
-  padding: 3rem;
+  padding: 3rem 3rem 6rem 3rem; /* Added extra bottom padding */
   position: relative;
   max-height: 90vh;
   overflow-y: auto;
@@ -250,6 +250,10 @@ input:focus, textarea:focus {
 .modal-content::-webkit-scrollbar-thumb {
   background: var(--glass-border);
   border-radius: 10px;
+}
+
+.dream-view-details {
+  padding-bottom: 2rem;
 }
 
 /* --- Responsive --- */

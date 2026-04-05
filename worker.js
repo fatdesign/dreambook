@@ -124,24 +124,7 @@ export default {
         Benutze Begriffe wie "Schatten-Selbst", "astrale Ströme", "Seelenecho". 
         Deine Antwort sollte sich wie ein altes Pergament lesen. Antworte NUR im Textformat, ohne Markups.`;
 
-        const aiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.KI_API}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
-            })
-          }
-        );
-
-        if (!aiResponse.ok) {
-          const errorData = await aiResponse.json();
-          throw new Error(`AI API Error: ${JSON.stringify(errorData)}`);
-        }
-
-        const aiResult = await aiResponse.json();
-        const analysisText = aiResult.candidates[0].content.parts[0].text.trim();
+        const analysisText = await callGemini(prompt, env.KI_API);
         
         // Save analysis back to the dream object
         const index = dreams.findIndex(d => d.id === dreamId);
@@ -162,3 +145,54 @@ export default {
     }
   }
 };
+
+/**
+ * Robust AI Caller that tries multiple models and versions (Inspired by stempelkarte)
+ */
+async function callGemini(prompt, apiKey) {
+  const versions = ["v1beta", "v1"];
+  const models = [
+    "models/gemini-2.5-flash",
+    "models/gemini-2.0-flash",
+    "models/gemini-1.5-flash",
+    "models/gemini-1.5-flash-latest",
+    "models/gemini-pro-latest",
+    "models/gemini-pro"
+  ];
+
+  let lastError = "";
+
+  for (const ver of versions) {
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${ver}/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { 
+              temperature: 0.8, 
+              maxOutputTokens: 2048,
+              topP: 0.95,
+              topK: 40
+            }
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) return text.trim();
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          lastError = `[${ver}/${model}] ${response.status}: ${errData.error?.message || "Unknown error"}`;
+        }
+      } catch (e) {
+        lastError = `[Fetch Error] ${e.message}`;
+      }
+    }
+  }
+
+  throw new Error(`The Witch remains silent after many attempts. Last error: ${lastError}`);
+}
