@@ -326,21 +326,21 @@ function App() {
                         }
                       }}
                     >
-                      <span role="img" aria-label="crystal-ball">🔮</span> Consult the Master Witch
+                      <span role="img" aria-label="brain">🧠</span> KI Analyse anfordern
                     </button>
                   )}
 
                   {loading && !viewingDream.analysis && (
-                    <div className="loading-witch">
-                      <span className="crystal-ball">🔮</span>
-                      <p>Piercing the veil of the subconscious...</p>
+                    <div className="loading-ai">
+                      <span className="ai-pulse" role="img" aria-label="sparkles">✨</span>
+                      <p>Der AI Analyst wertet deinen Traum aus...</p>
                     </div>
                   )}
 
                   {viewingDream.analysis && (
-                    <div className="parchment">
-                      <h4>The Witch's Insight</h4>
-                      <div className="oracle-content">
+                    <div className="ai-insight-panel">
+                      <h4><span role="img" aria-label="stars">✨</span> AI Interpretation</h4>
+                      <div className="ai-content">
                         {viewingDream.analysis}
                       </div>
                     </div>
