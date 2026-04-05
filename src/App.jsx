@@ -307,6 +307,45 @@ function App() {
                 <div style={{ whiteSpace: 'pre-wrap', fontSize: '1.1rem', color: 'var(--text-main)', lineHeight: '1.8' }}>
                   {viewingDream.content}
                 </div>
+
+                <div className="witch-section">
+                  {!viewingDream.analysis && !loading && (
+                    <button 
+                      className="witch-btn" 
+                      onClick={async () => {
+                        try {
+                          setLoading(true);
+                          const result = await api.analyzeDream(viewingDream.id);
+                          const updatedDream = { ...viewingDream, analysis: result.analysis };
+                          setViewingDream(updatedDream);
+                          setDreams(dreams.map(d => d.id === updatedDream.id ? updatedDream : d));
+                        } catch (err) {
+                          alert(err.message);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                    >
+                      <span role="img" aria-label="crystal-ball">🔮</span> Consult the Master Witch
+                    </button>
+                  )}
+
+                  {loading && !viewingDream.analysis && (
+                    <div className="loading-witch">
+                      <span className="crystal-ball">🔮</span>
+                      <p>Piercing the veil of the subconscious...</p>
+                    </div>
+                  )}
+
+                  {viewingDream.analysis && (
+                    <div className="parchment">
+                      <h4>The Witch's Insight</h4>
+                      <div className="oracle-content">
+                        {viewingDream.analysis}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

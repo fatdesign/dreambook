@@ -55,5 +55,14 @@ export const api = {
     });
     if (!response.ok) throw new Error("Failed to delete dream");
     return await response.json();
+  },
+
+  async analyzeDream(id) {
+    const response = await fetch(`${WORKER_URL}/dreams/${id}/analyze`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    if (!response.ok) throw new Error("The Witch is silent. Try again.");
+    return await response.json();
   }
 };

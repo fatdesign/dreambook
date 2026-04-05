@@ -2,7 +2,7 @@ export default {
   async fetch(request, env, ctx) {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "https://fatdesign.github.io",
-      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, X-API-KEY",
     };
 
@@ -89,6 +89,66 @@ export default {
         await env.DREAMS_KV.put("dreams_list", JSON.stringify(filteredDreams));
         
         return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // POST /dreams/:id/analyze: AI Dream Interpretation
+      if (path.startsWith("/dreams/") && path.endsWith("/analyze") && request.method === "POST") {
+        const dreamId = path.split("/")[2];
+        const dreamsRaw = await env.DREAMS_KV.get("dreams_list");
+        const dreams = dreamsRaw ? JSON.parse(dreamsRaw) : [];
+        
+        const dream = dreams.find(d => d.id === dreamId);
+        if (!dream) return new Response("Not Found", { status: 404, headers: corsHeaders });
+        
+        if (!env.KI_API) {
+          return new Response(JSON.stringify({ error: "KI_API key is missing in Worker environment." }), { 
+            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          });
+        }
+
+        const prompt = `Du bist die "Master Witch" des Dream Vaults. Deine Stimme ist alt, weise, mystisch und tiefgründig. 
+        Analysiere den folgenden Traum und antworte in einem fesselnden, esoterischen Stil auf DEUTSCH.
+        
+        Traum-Titel: ${dream.title}
+        Datum: ${dream.date}
+        Stimmung: ${dream.mood}
+        Inhalt: ${dream.content}
+        
+        Struktur deiner Antwort:
+        1. "Die Vision": Eine kurze, poetische Zusammenfassung des Kerns.
+        2. "Die Symbole": Deute 2-3 wichtige Symbole aus dem Inhalt.
+        3. "Der Rat der Hexe": Ein kleiner Rat oder eine Reflexion (vielleicht ein winziges "Ritual").
+        
+        Benutze Begriffe wie "Schatten-Selbst", "astrale Ströme", "Seelenecho". 
+        Deine Antwort sollte sich wie ein altes Pergament lesen. Antworte NUR im Textformat, ohne Markups.`;
+
+        const aiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.KI_API}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            })
+          }
+        );
+
+        if (!aiResponse.ok) {
+          const errorData = await aiResponse.json();
+          throw new Error(`AI API Error: ${JSON.stringify(errorData)}`);
+        }
+
+        const aiResult = await aiResponse.json();
+        const analysisText = aiResult.candidates[0].content.parts[0].text.trim();
+        
+        // Save analysis back to the dream object
+        const index = dreams.findIndex(d => d.id === dreamId);
+        dreams[index].analysis = analysisText;
+        await env.DREAMS_KV.put("dreams_list", JSON.stringify(dreams));
+        
+        return new Response(JSON.stringify({ analysis: analysisText }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
