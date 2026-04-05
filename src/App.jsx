@@ -9,8 +9,12 @@ function App() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // States for New Dream
+  // Modal States
   const [showAddModal, setShowAddModal] = useState(false);
+  const [viewingDream, setViewingDream] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // New Dream State
   const [newDream, setNewDream] = useState({
     title: '',
     content: '',
@@ -55,7 +59,6 @@ function App() {
     try {
       setLoading(true);
       const data = await api.getDreams();
-      // Sort: Manual Date first (desc), then created date
       const sorted = data.sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
       setDreams(sorted);
     } catch (err) {
@@ -88,11 +91,26 @@ function App() {
     }
   };
 
+  const handleUpdateDream = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      const updated = await api.updateDream(viewingDream.id, viewingDream);
+      setDreams(dreams.map(d => d.id === updated.id ? updated : d));
+      setIsEditing(false);
+    } catch (err) {
+      alert('Failed to update dream.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this memory?')) return;
     try {
       await api.deleteDream(id);
       setDreams(dreams.filter(d => d.id !== id));
+      setViewingDream(null);
     } catch (err) {
       alert('Failed to delete.');
     }
@@ -157,7 +175,7 @@ function App() {
       ) : (
         <div className="dream-grid">
           {filteredDreams.map((dream) => (
-            <div key={dream.id} className={`dream-card glass-panel ${dream.isLucid ? 'lucid' : ''}`}>
+            <div key={dream.id} className={`dream-card glass-panel ${dream.isLucid ? 'lucid' : ''}`} onClick={() => setViewingDream(dream)} style={{ cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div className="dream-date">
                   {new Date(dream.date || dream.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}
@@ -169,24 +187,10 @@ function App() {
                 <span className={`dream-type ${dream.isLucid ? 'type-lucid' : 'type-regular'}`}>
                   {dream.isLucid ? '✧ Lucid Trance' : '☾ Deep Slumber'}
                 </span>
-                {dream.sleepHours && <span className="dream-type" style={{ background: 'hsla(0,0%,100%,0.05)', color: 'var(--text-muted)' }}>💤 {dream.sleepHours}h</span>}
-                {dream.vividness && <span className="dream-type" style={{ background: 'hsla(0,0%,100%,0.05)', color: 'var(--accent)' }}>✦ {dream.vividness}/10</span>}
+                {dream.sleepHours && <span className="dream-type" style={{ background: 'hsla(0,0%,100%,0.1)', color: 'var(--text-muted)' }}>💤 {dream.sleepHours}h</span>}
+                {dream.vividness && <span className="dream-type" style={{ background: 'hsla(0,0%,100%,0.1)', color: 'var(--accent)' }}>✦ {dream.vividness}/10</span>}
               </div>
               <p className="dream-content">{dream.content}</p>
-              <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button 
-                  onClick={() => alert(dream.content)} 
-                  style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem' }}
-                >
-                  Read More
-                </button>
-                <button 
-                  onClick={() => handleDelete(dream.id)} 
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,100,100,0.5)', cursor: 'pointer', fontSize: '0.85rem' }}
-                >
-                  Delete
-                </button>
-              </div>
             </div>
           ))}
         </div>
@@ -200,105 +204,111 @@ function App() {
 
       {/* Add Dream Modal */}
       {showAddModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-          padding: '1rem', backdropFilter: 'blur(10px)'
-        }}>
-          <div className="glass-panel" style={{ maxWidth: '700px', width: '100%', padding: '2.5rem', position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Record a Memory</h2>
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="glass-panel modal-content" onClick={e => e.stopPropagation()}>
+            <h2 style={{ marginBottom: '1.5rem', color: 'var(--primary)' }}>Record a Memory</h2>
             <form onSubmit={handleAddDream}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="input-group" style={{ gridColumn: 'span 2' }}>
                   <label>Dream Title</label>
-                  <input 
-                    type="text" 
-                    value={newDream.title} 
-                    onChange={e => setNewDream({...newDream, title: e.target.value})}
-                    placeholder="The Floating City..."
-                    required
-                  />
+                  <input type="text" value={newDream.title} onChange={e => setNewDream({...newDream, title: e.target.value})} placeholder="The Floating City..." required />
                 </div>
                 <div className="input-group">
-                  <label>Dream Date</label>
-                  <input 
-                    type="date" 
-                    value={newDream.date} 
-                    onChange={e => setNewDream({...newDream, date: e.target.value})}
-                    required
-                  />
+                  <label>Date</label>
+                  <input type="date" value={newDream.date} onChange={e => setNewDream({...newDream, date: e.target.value})} required/>
                 </div>
                 <div className="input-group">
-                  <label>Sleep Duration (Hours)</label>
-                  <input 
-                    type="number" 
-                    min="0" max="24"
-                    value={newDream.sleepHours} 
-                    onChange={e => setNewDream({...newDream, sleepHours: e.target.value})}
-                  />
+                  <label>Sleep (Hours)</label>
+                  <input type="number" value={newDream.sleepHours} onChange={e => setNewDream({...newDream, sleepHours: e.target.value})} />
                 </div>
               </div>
-
               <div className="input-group">
                 <label>Vividness: {newDream.vividness}/10</label>
-                <input 
-                  type="range" 
-                  min="1" max="10"
-                  value={newDream.vividness} 
-                  onChange={e => setNewDream({...newDream, vividness: e.target.value})}
-                  style={{ cursor: 'pointer' }}
-                />
+                <input type="range" min="1" max="10" value={newDream.vividness} onChange={e => setNewDream({...newDream, vividness: e.target.value})} />
               </div>
-
               <div className="input-group">
-                <label>Dominant Mood</label>
+                <label>Mood</label>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {moods.map(m => (
-                    <button 
-                      key={m.label}
-                      type="button"
-                      className={`btn ${newDream.mood === m.label ? 'btn-primary' : ''}`}
-                      style={{ 
-                        width: 'auto', padding: '0.5rem 1rem', fontSize: '0.8rem',
-                        background: newDream.mood === m.label ? '' : 'hsla(0,0%,100%,0.05)',
-                        border: '1px solid var(--glass-border)'
-                      }}
-                      onClick={() => setNewDream({...newDream, mood: m.label})}
-                    >
-                      {m.emoji} {m.label}
+                    <button key={m.label} type="button" className={`btn ${newDream.mood === m.label ? 'btn-primary' : ''}`} style={{ width: 'auto', padding: '0.5rem', fontSize: '0.75rem' }} onClick={() => setNewDream({...newDream, mood: m.label})}>
+                      {m.emoji}
                     </button>
                   ))}
                 </div>
               </div>
-
               <div className="input-group">
                 <label>The Experience</label>
-                <textarea 
-                  rows="4" 
-                  value={newDream.content} 
-                  onChange={e => setNewDream({...newDream, content: e.target.value})}
-                  placeholder="Describe your journey..."
-                  required
-                />
+                <textarea rows="4" value={newDream.content} onChange={e => setNewDream({...newDream, content: e.target.value})} placeholder="Describe your journey..." required />
               </div>
-
               <div className="input-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <input 
-                  type="checkbox" 
-                  style={{ width: 'auto' }} 
-                  checked={newDream.isLucid}
-                  onChange={e => setNewDream({...newDream, isLucid: e.target.checked})}
-                />
-                <label style={{ marginBottom: 0 }}>Was this a Lucid Dream? ✧</label>
+                <input type="checkbox" style={{ width: 'auto' }} checked={newDream.isLucid} onChange={e => setNewDream({...newDream, isLucid: e.target.checked})} />
+                <label style={{ marginBottom: 0 }}>Lucid Dream? ✧</label>
               </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Saving...' : 'Safe to Vault'}
-                </button>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Save'}</button>
                 <button type="button" className="btn" style={{ background: 'none' }} onClick={() => setShowAddModal(false)}>Cancel</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View/Edit Modal */}
+      {viewingDream && (
+        <div className="modal-overlay" onClick={() => { setViewingDream(null); setIsEditing(false); }}>
+          <div className="glass-panel modal-content" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
+            {isEditing ? (
+              <form onSubmit={handleUpdateDream}>
+                <h2 style={{ marginBottom: '1.5rem' }}>Edit Memory</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="input-group" style={{ gridColumn: 'span 2' }}>
+                    <label>Title</label>
+                    <input type="text" value={viewingDream.title} onChange={e => setViewingDream({...viewingDream, title: e.target.value})} required />
+                  </div>
+                  <div className="input-group">
+                    <label>Date</label>
+                    <input type="date" value={viewingDream.date} onChange={e => setViewingDream({...viewingDream, date: e.target.value})} required/>
+                  </div>
+                  <div className="input-group">
+                    <label>Sleep (Hours)</label>
+                    <input type="number" value={viewingDream.sleepHours} onChange={e => setViewingDream({...viewingDream, sleepHours: e.target.value})} />
+                  </div>
+                </div>
+                <div className="input-group">
+                  <label>Experience</label>
+                  <textarea rows="10" value={viewingDream.content} onChange={e => setViewingDream({...viewingDream, content: e.target.value})} required />
+                </div>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button type="submit" className="btn btn-primary" disabled={loading}>Save Changes</button>
+                  <button type="button" className="btn" style={{ background: 'none' }} onClick={() => setIsEditing(false)}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <div>
+                <header style={{ padding: 0, marginBottom: '2rem' }}>
+                  <div>
+                    <div className="dream-date">{new Date(viewingDream.date || viewingDream.createdAt).toLocaleDateString(undefined, { dateStyle: 'full' })}</div>
+                    <h2 style={{ fontSize: '2.5rem' }}>{viewingDream.title}</h2>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn" style={{ width: 'auto', background: 'hsla(0,0%,100%,0.1)' }} onClick={() => setIsEditing(true)}>Edit</button>
+                    <button className="btn" style={{ width: 'auto', background: 'rgba(255,100,100,0.2)', color: '#ff6464' }} onClick={() => handleDelete(viewingDream.id)}>Delete</button>
+                    <button className="btn" style={{ width: 'auto', background: 'none' }} onClick={() => setViewingDream(null)}>✕</button>
+                  </div>
+                </header>
+                <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+                   <span className={`dream-type ${viewingDream.isLucid ? 'type-lucid' : 'type-regular'}`}>
+                    {viewingDream.isLucid ? '✧ Lucid Dream' : '☾ Normal Dream'}
+                  </span>
+                  {viewingDream.sleepHours && <span className="dream-type" style={{ background: 'hsla(0,0%,100%,0.05)' }}>💤 {viewingDream.sleepHours}h sleep</span>}
+                  {viewingDream.vividness && <span className="dream-type" style={{ background: 'hsla(0,0%,100%,0.05)' }}>✦ {viewingDream.vividness}/10 vividness</span>}
+                  {viewingDream.mood && <span className="dream-type" style={{ background: 'hsla(0,0%,100%,0.05)' }}>{moods.find(m => m.label === viewingDream.mood)?.emoji} {viewingDream.mood}</span>}
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap', fontSize: '1.1rem', color: 'var(--text-main)', lineHeight: '1.8' }}>
+                  {viewingDream.content}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

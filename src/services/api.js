@@ -38,6 +38,16 @@ export const api = {
     return await response.json();
   },
 
+  async updateDream(id, updatedData) {
+    const response = await fetch(`${WORKER_URL}/dreams/${id}`, {
+      method: "PUT",
+      headers: getHeaders(),
+      body: JSON.stringify(updatedData),
+    });
+    if (!response.ok) throw new Error("Failed to update dream");
+    return await response.json();
+  },
+
   async deleteDream(id) {
     const response = await fetch(`${WORKER_URL}/dreams/${id}`, {
       method: "DELETE",

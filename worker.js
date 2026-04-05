@@ -61,6 +61,24 @@ export default {
         });
       }
 
+      // PUT /dreams/:id: Update an existing dream
+      if (path.startsWith("/dreams/") && request.method === "PUT") {
+        const dreamId = path.split("/")[2];
+        const updatedData = await request.json();
+        const dreamsRaw = await env.DREAMS_KV.get("dreams_list");
+        const dreams = dreamsRaw ? JSON.parse(dreamsRaw) : [];
+        
+        const index = dreams.findIndex(d => d.id === dreamId);
+        if (index === -1) return new Response("Not Found", { status: 404, headers: corsHeaders });
+        
+        dreams[index] = { ...dreams[index], ...updatedData };
+        await env.DREAMS_KV.put("dreams_list", JSON.stringify(dreams));
+        
+        return new Response(JSON.stringify(dreams[index]), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // DELETE /dreams/:id
       if (path.startsWith("/dreams/") && request.method === "DELETE") {
         const dreamId = path.split("/")[2];
